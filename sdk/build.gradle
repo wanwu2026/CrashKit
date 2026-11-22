@@ -50,7 +50,7 @@ afterEvaluate {
             release(MavenPublication) {
                 from components.release
                 groupId = 'com.github.wanwu2026'
-                artifactId = "$d"
+                artifactId = 'CrashKit'
                 version = '1.0'
             }
         }
