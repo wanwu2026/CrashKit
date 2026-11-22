@@ -1,0 +1,83 @@
+name: Build Demo APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CrashKit 契约自检
+        run: python3 tools/check_contract.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Android SDK 组件
+        run: |
+          SDKROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMGR=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n 1)
+          if [ -z "$SDKMGR" ]; then echo "未找到 sdkmanager" >&2; exit 1; fi
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --install "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "Android SDK 就绪"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: 临时签名密钥
+        run: |
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/crashkit-demo.jks" \
+            -storepass crashkitdemo -keypass crashkitdemo -alias demo -keyalg RSA \
+            -keysize 2048 -validity 10000 \
+            -dname "CN=CrashKit Demo, OU=Open Source, O=CrashKit, L=Unknown, ST=Unknown, C=CN" >/dev/null 2>&1
+          echo "CRASHKIT_KEYSTORE=$RUNNER_TEMP/crashkit-demo.jks" >> "$GITHUB_ENV"
+          echo "CRASHKIT_STOREPASS=crashkitdemo" >> "$GITHUB_ENV"
+          echo "CRASHKIT_KEYPASS=crashkitdemo" >> "$GITHUB_ENV"
+          echo "CRASHKIT_KEYALIAS=demo" >> "$GITHUB_ENV"
+
+      - name: Java 单元测试
+        run: gradle :sdk:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: 编译 Release APK
+        run: gradle :demo:assembleRelease --no-daemon --stacktrace
+
+      - name: 定位 APK
+        run: |
+          APK=$(find demo/build/outputs/apk/release -name '*.apk' | head -n 1)
+          if [ -z "$APK" ]; then echo "未找到 APK" >&2; exit 1; fi
+          cp "$APK" "$GITHUB_WORKSPACE/CrashKitDemo-release.apk"
+          echo "APK: $(du -h "$GITHUB_WORKSPACE/CrashKitDemo-release.apk" | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrashKitDemo-apk
+          path: CrashKitDemo-release.apk
+          if-no-files-found: error
+
+      - name: 发布 Release
+        run: |
+          REF=${GITHUB_REF#refs/tags/}
+          if [ "$REF" != "$GITHUB_REF" ]; then TAG="$REF"; else TAG="demo-latest"; fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          body: |
+            GitHub Actions 自动编译的示例 App（临时密钥签名，每次构建变化，重装需先卸载）。
+            演示 PII 脱敏 / 崩溃捕获 / JSON 构造，离线可看。真上报需在 DemoApp 配置 OpenHub 地址与 API Key。
+          files: CrashKitDemo-release.apk
+          generate_release_notes: ${{ github.ref_type == 'tag' }}
+          preserve_existing_tag: true
