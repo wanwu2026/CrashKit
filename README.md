@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-一个**纯客户端**的崩溃上报 SDK，对接 [OpenHub](https://github.com/wanwu2026/OpenHub) 的 `crash` 插件。补齐生态里唯一还没有客户端 SDK 的插件，让四个插件（cardkey/update/announce/crash）都有对应客户端。
+一个**纯客户端**的崩溃上报 SDK，对接 [OpenHub](https://github.com/wanwu2026/OpenHub) 的 `crash` 插件。
 
 - 全局未捕获异常捕获 → 本地脱敏 → 离线排队 → 上报 OpenHub
 - **客户端先脱敏**（邮箱/手机号/Bearer/长 hex），服务端再脱敏一次——双保险，敏感数据尽量不出设备

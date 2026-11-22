@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-A **client-side** crash-reporting SDK targeting [OpenHub](https://github.com/wanwu2026/OpenHub)'s `crash` plugin. It fills the last plugin without a client SDK, so all four plugins (cardkey/update/announce/crash) have a client.
+A **client-side** crash-reporting SDK targeting [OpenHub](https://github.com/wanwu2026/OpenHub)'s `crash` plugin.
 
 - Global uncaught-exception handler → local redaction → offline queue → report to OpenHub
 - **Client redacts first** (email/phone/Bearer/long-hex), server redacts again — sensitive data stays on-device as much as possible
